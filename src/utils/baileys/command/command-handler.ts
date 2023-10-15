@@ -73,8 +73,9 @@ export default class BaileysCommandsHandler {
       }
       await commandClass.execute(commandName, args, message, ...parsedArgs);
     } catch (error) {
-      console.log(error);
-      throw new Error(`Error executing command ${commandName}`);
+      message.reply(`❌ Ocorreu um erro ao executar o comando ${commandName}`);
+      console.error(error);
+      // throw new Error(`Error executing command ${commandName}`);
     }
 
   }

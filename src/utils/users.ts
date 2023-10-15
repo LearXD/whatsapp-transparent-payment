@@ -11,6 +11,10 @@ export default class UserRepository {
     })
   }
 
+  static getPaymentOwner(id: number) {
+    return prisma.user.findUnique({ where: { id } })
+  }
+
   public static async checkUser(phone: string) {
     const user = await prisma.user.findUnique({ where: { number: phone } })
     if (!user) {

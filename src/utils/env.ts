@@ -9,4 +9,8 @@ export default class ENV {
   static getMercadoPagoToken(): string {
     return this.get('MERCADO_PAGO_TOKEN') || '';
   }
+
+  static isDev() {
+    return this.get('NODE_ENV') === 'development';
+  }
 }

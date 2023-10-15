@@ -5,7 +5,7 @@ import MercadoPago from "../utils/mercado-pago";
 import { formatDate } from "../utils/timer";
 export default class MercadoPagoCommand extends BaileysCommand {
   constructor() {
-    super("mercadopago", "Mercado Pago", ["mp"])
+    super("pix", "Gere um código QR para pix")
   }
 
   public async execute(command: string, args: string[], message: BaileysMessage, user: User) {
@@ -22,7 +22,7 @@ export default class MercadoPagoCommand extends BaileysCommand {
     }
 
     await message.reply("⏳ Gerando código de pagamento...");
-    const payment = await MercadoPago.createPayment(0.10, "Teste", "contato@learxd.dev", user.id);
+    const payment = await MercadoPago.createPayment(parseFloat(value), "Teste", "contato@learxd.dev", user.id);
 
     if (!payment.id) {
       message.reply("❌ Não foi possível criar o pagamento, ID não encontrado")

@@ -1,9 +1,10 @@
-import MercadoPagoConfig, { Payment } from "mercadopago";
-import prisma from "../prisma";
+import MercadoPagoConfig, { Payment as MercadoPagoPayment } from "mercadopago";
 import ENV from "../env"
 import BaileysBot from "../baileys/baileys-bot";
 import { delay } from "@whiskeysockets/baileys";
-import { isExpired } from "../timer";
+import Payment from "../mercado-pago/utils/payment"
+import User from "./utils/user";
+import { formatDate } from "../timer";
 
 export default class MercadoPago {
 
@@ -14,7 +15,7 @@ export default class MercadoPago {
   }
 
   public static getPaymentsManager() {
-    return new Payment(this.getClient())
+    return new MercadoPagoPayment(this.getClient())
   }
 
   public static async getPayment(id: string) {
@@ -22,6 +23,12 @@ export default class MercadoPago {
   }
 
   public static async createPayment(amount: number, description: string, payerEmail: string, userId: number) {
+
+    const user = await User.findById(userId)
+
+    if ((await user.getPendingPayments()).length > 0) {
+      throw new Error("Você já possui um pagamento pendente!")
+    }
 
     const payment = await this.getPaymentsManager().create({
       body: {
@@ -34,72 +41,63 @@ export default class MercadoPago {
       }
     });
 
-    if (payment || payment.status === "pending") {
-      const register = await prisma.payment.create({
-        data: {
-          paymentId: `${payment.id}`,
-          status: payment.status,
-          userId,
-          amount,
-          expiresAt: payment.date_of_expiration
-        }
-      })
-      if (!register) {
-        throw new Error("Não foi possível registrar o pagamento")
-      }
+    if (!payment || Object.keys(payment).find(key => key === "error")) {
+      throw new Error("Não foi solicitar o pagamento")
     }
+
+    const register = await Payment.create({
+      paymentId: `${payment.id}`,
+      status: payment.status,
+      userId,
+      amount,
+      expiresAt: payment.date_of_expiration
+    })
+
+    if (!register) {
+      throw new Error("Não foi possível registrar o pagamento")
+    }
+
     return payment
   }
 
   public static initPaymentChecker(
     broadcaster: BaileysBot,
-    interval: number = 5000
+    interval: number = 60 * 1000
   ) {
 
-    if (this.paymentChecker) {
-      clearTimeout(this.paymentChecker);
-    }
-
     const check = async () => {
-      console.log("Checking payments...")
 
-      const pending = await prisma.payment.findMany({
-        where: {
-          status: "pending",
-          'OR': [
-            {
-              'notified': false
-            }
-          ]
-        }
-      })
+      const expired = await Payment.getExpiredPayments()
+
+      for await (const payment of expired) {
+        const user = await payment.getOwner()
+        const paymentData = await this.getPayment(payment.getPaymentId())
+        payment.setStatus(paymentData.status)
+        await broadcaster.sendMessage(user.getPhone(), `❌ PIX #${paymentData.id} no valor de R$ ${paymentData.transaction_amount} expirou ou foi cancelado!`)
+        await payment.update({ status: "expired", notified: true })
+        await delay(2000);
+      }
+
+      const pending = await Payment.getPendingPayments()
 
       for await (const payment of pending) {
-        const paymentData = await this.getPayment(payment.paymentId)
+        const paymentData = await this.getPayment(payment.getPaymentId())
+        payment.setStatus(paymentData.status)
 
-        console.log(`Payment ${payment.paymentId} status: ${paymentData.status}`)
-        const user = await prisma.user.findUnique({ where: { id: payment.userId } })
-
-        if (paymentData.status === "approved") {
-          await broadcaster.sendMessage(user.number, `✔ PIX #${paymentData.id} no valor de R$ ${paymentData.transaction_amount} aprovado!`)
-          await prisma.payment.update({ where: { id: payment.id }, data: { status: paymentData.status, notified: true } })
+        if (payment.isApproved()) {
+          const user = await payment.getOwner()
+          await broadcaster.sendMessage(
+            user.getPhone(),
+            `✔ PIX #${paymentData.id} no valor de R$ ${paymentData.transaction_amount} aprovado!`
+          )
+          await payment.update({ status: paymentData.status, notified: true })
         }
-
-        if (
-          paymentData.status === "cancelled" ||
-          paymentData.status === "expired" ||
-          isExpired(payment.expiresAt)
-        ) {
-          await broadcaster.sendMessage(user.number, `❌ PIX #${paymentData.id} no valor de R$ ${paymentData.transaction_amount} expirou ou foi cancelado!`)
-          await prisma.payment.update({ where: { id: payment.id }, data: { status: "expired", notified: true } })
-        }
-
-        await delay(5000);
+        await delay(2000);
       }
 
       this.initPaymentChecker(broadcaster, interval)
     }
 
-    this.paymentChecker = setTimeout(check, interval)
+    setTimeout(check, interval)
   }
 } 

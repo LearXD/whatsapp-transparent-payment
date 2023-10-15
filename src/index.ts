@@ -1,4 +1,4 @@
-import MercadoPagoCommand from "./commands/mercado-pago";
+import PixCommand from "./commands/pix";
 import BaileysBot from "./utils/baileys/baileys-bot";
 import BaileysMessage from "./utils/baileys/message";
 import MercadoPago from "./utils/mercado-pago";
@@ -20,8 +20,8 @@ import UserRepository from "./utils/users";
       return [user];
     }
   );
-  bot.getCommandsHandler().registerCommand(new MercadoPagoCommand())
+  bot.getCommandsHandler().registerCommand(new PixCommand())
 
   // INIT PAYMENT CHECKER
-  MercadoPago.initPaymentChecker(bot, 5000)
+  MercadoPago.initPaymentChecker(bot)
 })()

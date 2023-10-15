@@ -1,7 +1,13 @@
 import { proto, downloadMediaMessage, AnyMessageContent, MiscMessageGenerationOptions } from '@whiskeysockets/baileys';
 import BaileysBot from '../baileys-bot';
 
-const MEDIA_TYPES = ['imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage', 'documentMessage']
+const MEDIA_TYPES = [
+  'imageMessage',
+  'videoMessage',
+  'audioMessage',
+  'stickerMessage',
+  'documentMessage'
+]
 
 export default class BaileysMessage {
 
@@ -9,7 +15,6 @@ export default class BaileysMessage {
   private message = this.data.message;
 
   constructor(private data: proto.IWebMessageInfo, private handler: BaileysBot) {
-    this.parse()
   }
 
   static from(message: proto.IWebMessageInfo, handler: BaileysBot) {
@@ -20,27 +25,12 @@ export default class BaileysMessage {
     return this.data;
   }
 
-  private parse() {
-    this.extractText();
-  }
-
   public mark(content: AnyMessageContent | string) {
     return this.reply(content, { quoted: this.data })
   }
 
   public reply(content: AnyMessageContent | string, options?: MiscMessageGenerationOptions) {
     return this.handler.sendMessage(this.getFrom(), content, options);
-  }
-
-  public extractText() {
-    const message = this.data.message;
-    this.text = (
-      message?.conversation ||
-      message?.extendedTextMessage?.text ||
-      message?.imageMessage?.caption ||
-      message?.videoMessage?.caption ||
-      ""
-    );
   }
 
   public async getMedia() {
@@ -57,7 +47,14 @@ export default class BaileysMessage {
   }
 
   public getText() {
-    return this.text;
+    const message = this.message
+    return (
+      message?.conversation ||
+      message?.extendedTextMessage?.text ||
+      message?.imageMessage?.caption ||
+      message?.videoMessage?.caption ||
+      ""
+    )
   }
 
   public fromMe() {

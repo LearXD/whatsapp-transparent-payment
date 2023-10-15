@@ -23,26 +23,24 @@ export default class BaileysBot extends EventEmitter {
       this.session = new BaileysSession(this)
       await this.session.init()
 
-      this.commandsHandler = new BaileysCommandsHandler(this)
+      this.commandsHandler = new BaileysCommandsHandler(this, {
+        prefix: this.config?.commandPrefix
+      })
       this.commandsHandler.init()
 
       this.on("message", async (message: BaileysMessage) => {
         await this.commandsHandler.executeCommand(message)
       });
 
-      this.on("connection.opened", () => {
-        console.log("Connection opened")
-      });
-
-      this.on("connection.closed", () => {
-        console.log("Connection closed")
-      });
-
       resolve(undefined)
     });
   }
 
-  public sendMessage(to: string, content: AnyMessageContent | string, options?: MiscMessageGenerationOptions) {
+  public sendMessage(
+    to: string,
+    content: AnyMessageContent | string,
+    options?: MiscMessageGenerationOptions
+  ) {
     return this.getSession().getInstance().sendMessage(
       to,
       typeof content === "string" ? { text: content } : content,

@@ -5,7 +5,7 @@ export default abstract class BaileysCommand {
   constructor(
     private name: string,
     private description?: string,
-    private aliases?: string[],
+    private aliases: string[] = [],
   ) { }
 
   public getName() {
